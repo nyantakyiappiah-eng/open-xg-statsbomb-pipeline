@@ -35,4 +35,12 @@ install.packages(c(
   "lme4", "pROC", "broom"
 ))
 remotes::install_github("statsbomb/StatsBombR")
+## Reproducing the analysis
+
+From an R session opened in a local copy of this repository, run:
+
+```r
+source("R/01_data_download.R")
+source("R/02_feature_engineering.R")
+source("R/03_models_and_figures.R")
 
