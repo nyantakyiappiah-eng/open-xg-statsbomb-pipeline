@@ -1,53 +1,112 @@
-# 02_feature_engineering.R
-# Build shot-level dataset with distance, angle, body part, competition
+# ============================================================
+# 01_data_download.R
+# Download and parse StatsBomb Open Data
+# 
+# This script downloads and processes StatsBomb Open Data
+# for La Liga 2015/2016 and the 2018 FIFA World Cup.
+#
+# To run this script, you need:
+#   - R (>= 4.5.2)
+#   - Packages: jsonlite, dplyr, purrr, tidyr, readr
+#
+# Update the path below to point to your local StatsBomb data.
+# ============================================================
 
+# Load required libraries
+library(jsonlite)
 library(dplyr)
 library(purrr)
+library(tidyr)
+library(readr)
 
-if (!dir.exists("data")) dir.create("data")
+# ============================================================
+# STEP 1: Set path to StatsBomb data
+# ============================================================
 
-events <- readRDS("data/events_statsbomb.rds")
+# UPDATE THIS PATH BEFORE RUNNING
+sb_path <- "E:/open-data-master/open-data-master/data"
 
-# Filter non-penalty, non-own-goal shots
-shots <- events %>%
-  filter(type.name == "Shot",
-         shot.type.name != "Penalty",
-         is.na(shot.outcome.name) | shot.outcome.name != "Own Goal") %>%
-  select(match_id, competition_id, season_id, minute, second,
-         team.name, player.id, player.name,
-         location, shot.outcome.name, shot.body_part.name)
+# File paths
+competitions_file <- file.path(sb_path, "competitions.json")
+matches_path <- file.path(sb_path, "matches")
+events_path <- file.path(sb_path, "events")
 
-# Unpack coordinates
-shots <- shots %>%
-  mutate(
-    x = map_dbl(location, 1),
-    y = map_dbl(location, 2)
-  ) %>%
-  select(-location)
+# ============================================================
+# STEP 2: Read competitions data
+# ============================================================
 
-goal_x <- 120
-goal_y <- 40
+competitions <- fromJSON(competitions_file)
 
-# Identify competitions
-comps <- FreeCompetitions()
-wc18 <- comps %>%
-  filter(competition_name == "FIFA World Cup",
-         season_name == "2018")
-laliga1516 <- comps %>%
-  filter(competition_name == "La Liga",
-         season_name == "2015/2016")
+cat("Total competitions:", nrow(competitions), "\n")
 
-shots <- shots %>%
-  mutate(
-    shot_dist  = sqrt((goal_x - x)^2 + (goal_y - y)^2),
-    shot_angle = atan2(goal_y - y, goal_x - x),
-    goal       = if_else(shot.outcome.name == "Goal", 1L, 0L),
-    body_part  = if_else(shot.body_part.name == "Head", "head", "foot"),
-    competition = case_when(
-      competition_id == wc18$competition_id[1]       ~ "WorldCup2018",
-      competition_id == laliga1516$competition_id[1] ~ "LaLiga2015_16",
-      TRUE ~ "other"
-    )
-  )
+# Identify La Liga 2015/2016 and World Cup 2018
+# La Liga: competition_id = 11, season_id = 27
+# World Cup: competition_id = 43, season_id = 3
 
-saveRDS(shots, file = "data/shots_features.rds")
+la_liga_id <- 11
+la_liga_season <- 27
+wc_id <- 43
+wc_season <- 3
+
+# ============================================================
+# STEP 3: Read match metadata
+# ============================================================
+
+la_matches <- fromJSON(
+  file.path(matches_path, "11", "27.json"),
+  flatten = TRUE
+)
+
+wc_matches <- fromJSON(
+  file.path(matches_path, "43", "3.json"),
+  flatten = TRUE
+)
+
+cat("La Liga matches :", nrow(la_matches), "\n")
+cat("World Cup matches:", nrow(wc_matches), "\n")
+cat("Total matches:", nrow(la_matches) + nrow(wc_matches), "\n")
+
+# Match IDs
+la_match_ids <- la_matches$match_id
+wc_match_ids <- wc_matches$match_id
+
+# ============================================================
+# STEP 4: Read event files
+# ============================================================
+
+# Function to read one event file
+read_events <- function(match_id) {
+  file <- file.path(events_path, paste0(match_id, ".json"))
+  x <- fromJSON(file, flatten = TRUE)
+  x$match_id <- match_id
+  x
+}
+
+cat("Reading La Liga events...\n")
+la_events <- purrr::map_dfr(la_match_ids, read_events)
+
+cat("Reading World Cup events...\n")
+wc_events <- purrr::map_dfr(wc_match_ids, read_events)
+
+# Combine all events
+events <- bind_rows(la_events, wc_events)
+
+cat("Total events:", nrow(events), "\n")
+
+# ============================================================
+# STEP 5: Extract shots
+# ============================================================
+
+shots <- events %>% filter(type.name == "Shot")
+cat("Total shots:", nrow(shots), "\n")
+
+# Exclude penalties
+shots_np <- shots %>% filter(shot.type.name != "Penalty")
+cat("Non-penalty shots:", nrow(shots_np), "\n")
+
+# ============================================================
+# STEP 6: Save raw data
+# ============================================================
+
+saveRDS(shots_np, "data/shots_np_raw.rds")
+cat("Raw shot data saved to data/shots_np_raw.rds\n")
