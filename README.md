@@ -18,6 +18,9 @@ The analysis uses:
 - FIFA World Cup 2018
 
 Users must comply with StatsBomb’s attribution guidelines when using the data.
+If you use this code, please cite:
+
+Appiah, K. N., Adu, N., Singh, D. K., & Nartey, E. E. (2026). Interpretable Expected Goals Models in Soccer: A Reproducible Pipeline with StatsBomb Open Data. *International Journal of Data Science and Analytics*.
 
 ## Requirements
 
