@@ -1,3 +1,19 @@
+# ============================================================
+# Reproducible xG Pipeline
+# 
+# This script downloads and processes StatsBomb Open Data
+# for La Liga 2015/2016 and the 2018 FIFA World Cup.
+#
+# To run this script, you need:
+#   - R (>= 4.5.2)
+#   - Packages: jsonlite, dplyr, purrr, tidyr, readr
+#
+# Update the path below to point to your local StatsBomb data.
+# ============================================================
+
+# Set path to StatsBomb data
+# UPDATE THIS PATH BEFORE RUNNING
+sb_path <- "E:/open-data-master/open-data-master/data"
 # 01_data_download.R
 # Download and assemble StatsBomb Open Data for La Liga 2015/2016 and World Cup 2018
 
